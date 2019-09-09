@@ -52,15 +52,9 @@ init_filenames() {
 	resized="$folder/resized.png" # resized image for your resolution
 
 	# images to be used as wallpaper
-	dim="$folder/dim.png" # image with subtle overlay of black
-	blur="$folder/blur.png" # blurred version
-	dimblur="$folder/dimblur.png"
 
 	# lockscreen images (images to be used as lockscreen background)
 	l_resized="$folder/l_resized.png"
-	l_dim="$folder/l_dim.png"
-	l_blur="$folder/l_blur.png"
-	l_dimblur="$folder/l_dimblur.png"
 }
 
 init_filenames $res
@@ -113,21 +107,6 @@ rec_get_random() {
 lockselect() {
 	prelock
 	case "$1" in
-		dim)
-			# lockscreen with dimmed background
-			lock "$l_dim"
-			;;
-
-		blur)
-			# set lockscreen with blurred background
-			lock "$l_blur"
-			;;
-
-		dimblur)
-			# set lockscreen with dimmed + blurred background
-			lock "$l_dimblur"
-			;;
-
 		*)
 			# default lockscreen
 			lock "$l_resized"
@@ -158,9 +137,6 @@ logical_px() {
 update() {
 	# use 
 	background="$1"
-
-	# default blur level; fallback to 1
-	[[ $blur_level ]] || blur_level=1
 
 	rectangles=" "
 	SR=$(xrandr --query | grep ' connected' | grep -o '[0-9][0-9]*x[0-9][0-9]*[^ ]*')
@@ -205,45 +181,10 @@ update() {
 	convert "$orig_wall" -resize "$res""^" -gravity center -extent "$res" "$resized"
 
 	echo
-	echo 'Applying dim and blur effect to resized image'
-	# dim
-	convert "$resized" -fill black -colorize 40% "$dim"
-
-	# blur
-	blur_shrink=$(echo "scale=2; 20 / $blur_level" | bc)
-	blur_sigma=$(echo "scale=2; 0.6 * $blur_level" | bc)
-	convert "$resized" \
-		-filter Gaussian \
-		-resize "$blur_shrink%" \
-		-define "filter:sigma=$blur_sigma" \
-		-resize "$res^" -gravity center -extent "$res" \
-		"$blur"
-
-	# dimblur
-	convert "$dim" \
-		-filter Gaussian \
-		-resize "$blur_shrink%" \
-		-define "filter:sigma=$blur_sigma" \
-		-resize "$res^" -gravity center -extent "$res" \
-		"$dimblur"
-
-	# lockscreen backgrounds
-
-	echo
 	echo 'Caching images for faster screen locking'
 	# resized
 	convert "$resized" -draw "fill #$loginbox $rectangles" "$l_resized"
 
-	# dim
-	convert "$dim" -draw "fill #$loginbox $rectangles" "$l_dim"
-
-	# blur
-	convert "$blur" -draw "fill #$loginbox $rectangles" "$l_blur"
-
-	# blur
-	convert "$dimblur" -draw "fill #$loginbox $rectangles" "$l_dimblur"
-	echo
-	echo 'All required changes have been applied'
 }
 
 
@@ -254,20 +195,6 @@ wallpaper() {
 			feh --bg-fill $resized
 			;;
 
-		dim)
-			# set dimmed image as wallpaper
-			feh --bg-fill $dim
-			;;
-
-		blur)
-			# set blurred image as wallpaper
-			feh --bg-fill $blur
-			;;
-
-		dimblur)
-			# set dimmed + blurred image as wallpaper
-			feh --bg-fill $dimblur
-			;;
 	esac
 }
 
@@ -312,27 +239,15 @@ usage() {
 	echo
 	echo '	-l --lock'
 	echo '		to lock screen (e.g. betterlockscreen -l)'
-	echo '		you can also use dimmed or blurred background for lockscreen.'
-	echo '		E.g: betterlockscreen -l dim (for dimmed background)'
-	echo '		E.g: betterlockscreen -l blur (for blurred background)'
-	echo '		E.g: betterlockscreen -l dimblur (for dimmed + blurred background)'
 	echo
 	echo
 	echo '	-s --suspend'
 	echo '		to suspend system and lock screen (e.g. betterlockscreen -s)'
-	echo '		you can also use dimmed or blurred background for lockscreen.'
-	echo '		E.g: betterlockscreen -s dim (for dimmed background)'
-	echo '		E.g: betterlockscreen -s blur (for blurred background)'
-	echo '		E.g: betterlockscreen -s dimblur (for dimmed + blurred background)'
 	echo
 	echo
 	echo '	-w --wall'
 	echo '		you can also set lockscreen background as wallpaper'
 	echo '		to set wallpaper (e.g. betterlockscreen -w or betterlockscreen --wall)'
-	echo '		you can also use dimmed or blurred variants.'
-	echo '		E.g: betterlockscreen -w dim (for dimmed wallpaper)'
-	echo '		E.g: betterlockscreen -w blur (for blurred wallpaper)'
-	echo '		E.g: betterlockscreen -w dimblur (for dimmed + blurred wallpaper)'
 	echo
 	echo
 	echo '	-r --resolution'
@@ -342,17 +257,8 @@ usage() {
 	echo '		E.g: betterlockscreen -u path/to/image.png --resolution 3840x1080'
 	echo
 	echo
-	echo '	-b --blur'
-	echo '		to be used after -u'
-	echo '		used to set blur intensity. Default to 1.'
-	echo '		E.g: betterlockscreen -u path/to/image.png -b 3'
-	echo '		E.g: betterlockscreen -u path/to/image.png --blur 0.5'
-	echo
-	echo
 	echo '	-t --text'
 	echo '		to set custom lockscreen text (max 31 chars)'
-	echo "		E.g: betterlockscreen -l dim -t \"Don't touch my machine!\""
-	echo '		E.g: betterlockscreen --text "Hi, user!" -s blur'
 }
 
 
@@ -397,11 +303,6 @@ for arg in "$@"; do
 		-r | --resolution)
 			res="$2"
 			init_filenames $res force
-			shift 2
-			;;
-
-		-b | --blur)
-			blur_level="$2"
 			shift 2
 			;;
 
